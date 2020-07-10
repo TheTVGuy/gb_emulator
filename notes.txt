@@ -1,0 +1,138 @@
+----- SPECS -----
+
+CPU: 8-bit Z80-like
+RAM: 8k
+VRAM: 8k
+Resolution: 160x144
+Max # Sprites: 40
+Max # Sprites per Line: 10
+Max Sprite Size: 8x16
+Min Sprite Size: 8x8
+Clock Speed: 4.194304 MHz <- clock cycles
+
+----- GAME SPECS -----
+
+Tetris:
+  ROM Only (MBC1)
+
+Pkmn Red:
+  ROM+MBC3+RAM+BATT
+
+----- MEMORY -----
+
+Little Endian RAM
+Big Endian Registers
+
+0x0000 ROM Bank #0
+0x4000 Siwtchable ROM Bank
+0x8000 VRAM
+0xA000 Switchable RAM Bank
+0xC000 Internal RAM
+0xE000 Echo of internal RAM (Writing to 0xC000 also writes to 0xE000)
+0xFE00 Sprite Attrib Memory (OAM)
+0xFEA0 Empty
+0xFF00 I/O Ports
+0xFF4C Empty
+0xFF80 Internal RAM
+0xFFFF Interrupt Enable Register
+
+Read-only writes:
+0x0000-0x1FFF           RAM Enable (0x?A to enable, otherwise disable)
+0x2000-0x3FFF           ROM Bank Number (Selects lower 5 bits of bank number)
+0x4000-0x5FFF           RAM or ROM Bank Number (Selects upper 2 bits of ROM BN in ROM Mode or RAM BN in RAM Mode)
+0x6000-0x7FFF           ROM/RAM Mode Select (Selects which to select, 0=ROM 1=RAM)
+
+! IMPORTANT !
+0xFF50                  Boot rom enable register (0=enable, 1=disable)
+
+----- RESERVED MEMORY -----
+
+0x0000-0x0060 Reserved
+0x0100-0x0103 Begining of cartridge (usually NOP and JP)
+0x0104-0x0133 Scrolling Nintendo Graphic (WILL NOT WORK IF CHANGED)
+
+  CE ED 66 66 CC 0D 00 0B 03 73 00 83 00 0C 00 0D
+  00 08 11 1F 88 89 00 0E DC CC 6E E6 DD DD D9 99
+  BB BB 67 63 6E 0E EC CC DD DC 99 9F BB B9 33 3E
+
+0x0134-0x0142 Game Title in UPPER CASE (Unused are 0. Use for debugging?)
+0x0134        0x80 = Color GB, 0x00 or other = Not Color GB
+0x0144        ASCII Hex Digit, High Nibble of Licensee Code (Normally 0x00)
+0x0145        ASCII Hex Digit, Low Nibble of Licensee Code (Normally 0x00)
+0x0146        GB/SGB Indicator (0x00=GameBoy, 0x03=Super GameBoy)
+0x0147        Cartridge Type
+
+  0=Rom Only            12=ROM+MBC3+RAM
+  1=ROM+MBC1            13=ROM+MBC3+RAM+BATT
+  2=ROM+MBC1+RAM        19=ROM+MBC5
+  3=ROM+MBC1+RAM+BATT   1A=ROM+MBC5+RAM
+  5=ROM+MBC2            1B=ROM+MBC5+RAM+BATT
+  6=ROM+MBC2+BATT       1C=ROM+MBC5+RUMBLE
+  8=ROM+RAM             1D=ROM+MBC5+RUMBLE+SRAM
+  9=ROM+RAM+BATT        1E=ROM+MBC5+RUMBLE+SRAM+BATT
+  B=ROM+MMM01           1F=Pocket Camera
+  C=ROM+MMM01+SRAM      FD=Bandai TAMA5
+  D=ROM+MMM01+SRAM+BATT FE=Hudson HuC3
+  F=ROM+MBC3+TIMER+BATT FF=Hudson HuC1
+  10=ROM+MBC3+TIMER+BATT
+  11=ROM+MBC3
+
+0x0148        ROM Size
+
+  0 = 32k   = 2 Banks
+  1 = 64k   = 4 Banks
+  2 = 128k  = 8 Banks
+  3 = 256k  = 16 Banks
+  4 = 512k  = 32 Banks
+  5 = 1m    = 64 Banks
+  6 = 2m    = 128 Banks
+
+0x0149        RAM Size
+
+  0 = 2k    = 1 Bank
+  2 = 8k    = 1 Bank
+  3 = 32k   = 4 Banks
+  4 = 128k  = 16 Banks
+
+0x014A        Destination Code (0=Japanese, 1=Non-Japanese)
+0x014B        Licensee Code (33=Check 0x0144/0x0145 for code)
+0x014C        Mask ROM Version Number (Usually 0x00)
+0x014D        Complement Check (WONT RUN IF INCORRECT)
+0x014E-0x014F Checksum (Ignored)
+
+----- REGISTERS -----
+
+Eight 8-bit Registers Grouped into 16-bit if needed:
+
+  A   F   (AF)
+  B   C   (BC)
+  D   E   (DE)
+  H   L   (HL)
+
+Two 16-bit Registers:
+
+  SP
+  PC
+
+F (Flag) register is automatically set by math operations for certain flags
+  bit0: always 0
+  bit1: always 0
+  bit2: always 0
+  bit3: always 0
+  bit4: set if result of last operation is 0 or if values match with CP instruction
+  bit5: set if last operation was subtraction
+  bit6: set if carry from lower nibble to upper nibble on last operation
+  bit7: set if full carry on last operation or if register A was smaller on CP instruction
+
+Stack Pointer is initialized to 0xFFFE on boot but can be changed manually (and should)
+Stack Pointer is decreased before pushing
+Program Counter is initialized to 0x0100
+
+----- IMPLEMENTATION -----
+
+CPU runs one instruction and counts cycles, then gpu and sound chip run same number of cycles.
+
+----- OPCODES -----
+
+JP / JR: Jump / Jump Relative          http://www.z80.info/lesson3.htm
+JR Z / JR NZ: Jump if Z is set / Jump if Z is not set
